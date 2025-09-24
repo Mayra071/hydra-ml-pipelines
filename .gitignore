@@ -160,3 +160,6 @@ site/
 
 artifacts/
 outputs/
+models/
+mlruns/
+logs/
