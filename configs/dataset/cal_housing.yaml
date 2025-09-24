@@ -1,0 +1,7 @@
+paths:
+  dataset: C:\\Company\\Data_Set\\housing.csv
+
+task:
+  type: regression
+  target_column: median_house_value
+

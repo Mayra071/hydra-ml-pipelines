@@ -1,0 +1,14 @@
+artifact_uri: file:C:/Company/training_pipeline/mlruns/997564952486158002/e3a9b7c7084c405680da4d287d7b5f88/artifacts
+end_time: 1758712973136
+entry_point_name: ''
+experiment_id: '997564952486158002'
+lifecycle_stage: active
+run_id: e3a9b7c7084c405680da4d287d7b5f88
+run_name: training_run
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1758711243920
+status: 4
+tags: []
+user_id: aryam

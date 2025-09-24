@@ -1,0 +1,15 @@
+artifact_uri: file:C:/Company/training_pipeline/mlruns/997564952486158002/69b20836e3d44e7ca5298c37b03d1e2d/artifacts
+deleted_time: 1758705181974
+end_time: 1758696999965
+entry_point_name: ''
+experiment_id: '997564952486158002'
+lifecycle_stage: deleted
+run_id: 69b20836e3d44e7ca5298c37b03d1e2d
+run_name: unknown_model_unknown_task
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1758696999899
+status: 4
+tags: []
+user_id: aryam

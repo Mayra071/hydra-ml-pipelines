@@ -1,0 +1,6 @@
+artifact_location: file:C:/Company/training_pipeline/mlruns/997564952486158002
+creation_time: 1758694925292
+experiment_id: '997564952486158002'
+last_update_time: 1758694925292
+lifecycle_stage: active
+name: training_pipeline

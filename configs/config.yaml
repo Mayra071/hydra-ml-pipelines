@@ -1,0 +1,15 @@
+defaults:
+  - dataset: cal_housing
+  - model: random_forest
+  - training: base
+  - preprocessing: standard
+  - _self_
+
+project:
+  name: Training_pipeline
+
+mlflow:
+  tracking_uri: mlruns
+  experiment_name: training_pipeline
+
+

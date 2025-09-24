@@ -1,0 +1,7 @@
+model:
+  type: logistic_regression
+  params:
+    C: [0.01, 0.1, 1.0, 10.0]
+    penalty: [l1, l2, elasticnet, none]   # depends on solver
+    solver: [lbfgs, saga, liblinear]
+    max_iter: [100, 500, 1000]
