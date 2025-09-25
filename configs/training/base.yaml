@@ -4,7 +4,7 @@ split:
 
 search:
   kind: grid
-  cv: 5
+  cv: 2
   scoring_classification: f1_weighted
   scoring_regression: neg_root_mean_squared_error
 

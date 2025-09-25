@@ -1,7 +1,27 @@
-model:
+model: 
   type: logistic_regression
   params:
-    C: [0.01, 0.1, 1.0, 10.0]
-    penalty: [l1, l2, elasticnet, none]   # depends on solver
-    solver: [lbfgs, saga, liblinear]
-    max_iter: [100, 500, 1000]
+    # lbfgs solver: supports only l2, none
+    - solver: [lbfgs]
+      penalty: [l2, none]
+      C: [0.01, 0.1, 1.0, 10.0]
+      max_iter: [500, 1000]
+
+    # liblinear solver: supports l1, l2
+    - solver: [liblinear]
+      penalty: [l1, l2]
+      C: [0.01, 0.1, 1.0, 10.0]
+      max_iter: [500, 1000]
+
+    # saga solver: supports l1, l2, none
+    - solver: [saga]
+      penalty: [l1, l2, none]
+      C: [0.01, 0.1, 1.0, 10.0]
+      max_iter: [500, 1000]
+
+    # saga + elasticnet (only valid combo with l1_ratio)
+    - solver: [saga]
+      penalty: [elasticnet]
+      C: [0.01, 0.1, 1.0, 10.0]
+      max_iter: [500, 1000]
+      l1_ratio: [0.25, 0.5, 0.75]

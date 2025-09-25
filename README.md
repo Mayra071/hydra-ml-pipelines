@@ -1,0 +1,1 @@
+python main.py dataset=cal_housing_classification model.model.type=logistic_regression
