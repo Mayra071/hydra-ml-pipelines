@@ -20,42 +20,56 @@ def main(cfg: DictConfig):
         logger.info("Starting training run")
         logger.info("Config:\n" + OmegaConf.to_yaml(cfg))
 
-        # MLflow setup
-        mlflow.set_tracking_uri(cfg.mlflow.tracking_uri)
-        mlflow.set_experiment(cfg.mlflow.experiment_name)
+        # Dynamically select task config based on task_type (guarded)
+        task_key = cfg.task_type
+        if not hasattr(cfg.dataset, 'tasks') or task_key not in cfg.dataset.tasks:
+            raise KeyError(f"Task '{task_key}' not found in dataset.tasks. Available: {list(getattr(cfg.dataset, 'tasks', {}).keys())}")
+        cfg.dataset.task = cfg.dataset.tasks[task_key]
 
-        # Use a simple run name to avoid struct access issues
-        run_name = "training_run"
+        # MLflow setup (make URI absolute relative to project root)
+        from hydra.utils import get_original_cwd
+        project_root = get_original_cwd()
+        tracking_uri = cfg.mlflow.tracking_uri
+        
+        mlflow.set_tracking_uri(tracking_uri)
+        exp=mlflow.set_experiment(cfg.mlflow.experiment_name)
+        logger.info(f"{exp}")
+
+        # Use dynamic run name with model type, task type and timestamp
+        import datetime
+        run_name = f"{cfg.model.model.type}_{cfg.dataset.task.type}"
         with mlflow.start_run(run_name=run_name):
-            # Log config to MLflow
+            # Log config
             mlflow.log_text(OmegaConf.to_yaml(cfg), "config.yaml")
 
-            # 1) Ingest raw data
+            # Train pipeline
             ingestion = DataIngestion(cfg)
             raw_path = ingestion.initiate_data_ingestion()
-
-            # 2) Train/test split
             transformer = DataTransformation(cfg)
             train_path, test_path = transformer.split_and_save_data(raw_path)
-
-            # 3) Preprocess (fit on train, transform both)
             preproc = Preprocess(cfg)
-            processed_train, processed_test, preproc_obj = preproc.fit_transform_data(train_path, test_path)
+            processed_train, processed_test, preproc_path = preproc.fit_transform_data(train_path, test_path)
 
-            # 4) Train model(s)
             pipeline = ModelTrainingPipeline(cfg, processed_train, processed_test)
             results = pipeline.run()
 
-            # 5) Log results
+            # Log results
             if isinstance(results, dict):
-                for key, value in results.get("metrics", {}).items():
-                    mlflow.log_metric(key, float(value))
+                mlflow.log_metrics(results.get("metrics", {}))
                 mlflow.log_params(results.get("best_params", {}))
+
                 if "model_path" in results:
                     mlflow.log_artifact(results["model_path"], artifact_path="models")
-            mlflow.log_artifact(preproc_obj, artifact_path="artifacts")
 
+            # Log preprocessor artifact produced by preprocessing step
+            os.makedirs("artifacts", exist_ok=True)
+            mlflow.log_artifact(preproc_path, artifact_path="artifacts")
+
+            # Log dataset file
+            mlflow.log_artifact(cfg.dataset.paths.dataset, artifact_path="datasets")
             logger.info("Training finished")
+
+
 
     except Exception as e:
         logger.error("Training failed", exc_info=True)

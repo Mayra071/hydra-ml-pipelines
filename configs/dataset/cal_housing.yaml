@@ -1,7 +1,19 @@
 paths:
   dataset: C:\\Company\\Data_Set\\housing.csv
 
-task:
-  type: regression
-  target_column: median_house_value
+tasks:
+  regression:
+    type: regression
+    target_column: median_house_value
 
+  classification:
+    type: classification
+    target_column: price_class
+    labeling:
+      source_column: median_house_value
+      method: quantile
+      q: [0.33, 0.66]
+      labels: [low, medium, high]
+
+# Placeholder to allow assignment at runtime: cfg.dataset.task = cfg.dataset.tasks[cfg.task_type]
+task: {}

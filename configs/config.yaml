@@ -5,6 +5,8 @@ defaults:
   - preprocessing: standard
   - _self_
 
+task_type: regression
+
 project:
   name: Training_pipeline
 

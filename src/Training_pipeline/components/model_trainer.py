@@ -6,9 +6,10 @@ import pandas as pd
 import numpy as np
 from omegaconf import OmegaConf
 from collections import Counter
+import mlflow.sklearn
 
 from dataclasses import dataclass
-from sklearn.model_selection import GridSearchCV, ShuffleSplit, StratifiedShuffleSplit
+from sklearn.model_selection import GridSearchCV, ShuffleSplit, StratifiedShuffleSplit, KFold
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, r2_score, mean_absolute_error, mean_squared_error
@@ -53,7 +54,7 @@ class ModelTrainer:
             train_df = pd.read_csv(train_path)
             test_df = pd.read_csv(test_path)
             target_col = self.cfg.dataset.task.target_column
-            
+
             X_train = train_df.drop(columns=[target_col])
             y_train = train_df[target_col]
             X_test = test_df.drop(columns=[target_col])
@@ -91,11 +92,28 @@ class ModelTrainer:
                 scoring = self.cfg.training.search.scoring_regression
 
             # Prepare GridSearchCV
-            # Load params from the specific model config yaml
             model_config_path = f"configs/model/{model_type}.yaml"
             model_cfg = OmegaConf.load(model_config_path)
             param_grid = OmegaConf.to_container(model_cfg.model.params, resolve=True)
-            logger.info(f"{model_type} param_grid: {param_grid}")
+            # Validate params
+            valid_params = set(base_model.get_params().keys())
+            invalid_params = set()
+            for param_dict in param_grid:
+                if isinstance(param_dict, dict):
+                    for key in param_dict.keys():
+                        if key not in valid_params:
+                            invalid_params.add(key)
+            if invalid_params:
+                logger.warning(f"Invalid parameters for {model_type}: {invalid_params}. Filtering them out.")
+                new_param_grid = []
+                for param_dict in param_grid:
+                    filtered = {k: v for k, v in param_dict.items() if k in valid_params}
+                    if filtered:
+                        new_param_grid.append(filtered)
+                param_grid = new_param_grid
+            
+            logger.info(f"Loaded params from {model_type}.yaml: {param_grid}")
+
             if task_type == "classification":
                 counts = Counter(y_train)
                 if any(count < 2 for count in counts.values()):
@@ -104,16 +122,20 @@ class ModelTrainer:
                 else:
                     cv_strategy = StratifiedShuffleSplit(n_splits=self.cfg.training.search.cv, test_size=0.2, random_state=42)
             else:
-                cv_strategy =self.cfg.training.search.cv   # regression can just use KFold or number
+                cv_strategy = KFold(n_splits=self.cfg.training.search.cv, shuffle=True, random_state=42)
 
+
+            # Wire runtime controls
+            n_jobs = getattr(self.cfg.training.runtime, 'n_jobs', None)
+            verbose = getattr(self.cfg.training.runtime, 'verbose', 0)
 
             search = GridSearchCV(
                 estimator=base_model,
                 param_grid=param_grid,
                 cv=cv_strategy,
                 scoring=scoring,
-                n_jobs=self.cfg.training.runtime.n_jobs,
-                verbose=self.cfg.training.runtime.verbose,
+                n_jobs=n_jobs,
+                verbose=verbose,
             )
 
             search.fit(X_train, y_train)
@@ -133,9 +155,9 @@ class ModelTrainer:
                 }).sort_values(by="importance", ascending=False)
                 logger.info(f"Top features:\n{feature_importance_df.head(10)}")
 
-            # Save model
+            # Save model to disk for reproducibility
             os.makedirs(self._model_dir, exist_ok=True)
-            model_path = os.path.join(self._model_dir, f"{model_type}_best.pkl")
+            model_path = os.path.join(self._model_dir, f"{model_type}_{task_type}_best.pkl")
             joblib.dump(best_model, model_path)
             logger.info(f"Best model saved at {model_path}")
 
@@ -144,6 +166,9 @@ class ModelTrainer:
             results = {"best_params": search.best_params_, "metrics": metrics, "model_path": model_path}
             with open(self._metrics_path, "w") as f:
                 json.dump(results, f, indent=4)
+
+            # Log model object to MLflow properly
+            mlflow.sklearn.log_model(best_model, artifact_path=f"{model_type}")
 
             return results
 

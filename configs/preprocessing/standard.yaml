@@ -1,8 +1,7 @@
-preprocessing:
-  numeric:
-    imputer: mean
-    scaler: standard
-  categorical:
-    imputer: most_frequent
-    encoder: onehot
+numeric:
+  imputer: mean
+  scaler: standard
+categorical:
+  imputer: most_frequent
+  encoder: onehot
 

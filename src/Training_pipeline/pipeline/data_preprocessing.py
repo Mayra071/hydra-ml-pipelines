@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 from dataclasses import dataclass
-from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, OneHotEncoder, LabelEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
@@ -36,14 +36,27 @@ class Preprocess:
             logger.info(f'Numerical columns: {numerical_cols}')
             logger.info(f'Categorical columns: {categorical_cols}')
 
+            # Numeric pipeline from config with defaults
+            num_imputer_strategy = OmegaConf.select(self.cfg, "preprocessing.numeric.imputer", default="mean")
+            num_imputer = SimpleImputer(strategy=num_imputer_strategy)
+            scaler_type = OmegaConf.select(self.cfg, "preprocessing.numeric.scaler", default="standard")
+            if scaler_type == 'minmax':
+                scaler = MinMaxScaler()
+            else:
+                scaler = StandardScaler()  # default to standard
             numeric_transformer = Pipeline([
-                ('imputer', SimpleImputer(strategy='mean')),
-                ('scaler', StandardScaler())
+                ('imputer', num_imputer),
+                ('scaler', scaler)
             ])
 
+            # Categorical pipeline from config with defaults
+            cat_imputer_strategy = OmegaConf.select(self.cfg, "preprocessing.categorical.imputer", default="most_frequent")
+            cat_imputer = SimpleImputer(strategy=cat_imputer_strategy)
+            encoder_type = OmegaConf.select(self.cfg, "preprocessing.categorical.encoder", default="onehot")
+            encoder = OneHotEncoder(handle_unknown='ignore')  # assume onehot; extend if needed
             categorical_transformer = Pipeline([
-                ('imputer', SimpleImputer(strategy='most_frequent')),
-                ('encoder', OneHotEncoder(handle_unknown='ignore'))
+                ('imputer', cat_imputer),
+                ('encoder', encoder)
             ])
 
             preprocessor = ColumnTransformer([
@@ -65,14 +78,15 @@ class Preprocess:
             test_df = pd.read_csv(test_path)
 
             task_type = self.cfg.dataset.task.type
-            target_col = self.cfg.dataset.task.target_column
+            task_cfg = self.cfg.dataset.tasks[task_type]
+            target_col = task_cfg.target_column
             original_target = None
 
             # -----------------------------
             # Classification labeling
             # -----------------------------
-            if task_type == 'classification' and hasattr(self.cfg.dataset.task, 'labeling'):
-                labeling_cfg = self.cfg.dataset.task.labeling
+            if task_type == 'classification' and hasattr(task_cfg, 'labeling'):
+                labeling_cfg = task_cfg.labeling
                 src_col = labeling_cfg.source_column
                 method = labeling_cfg.method
                 custom_labels = getattr(labeling_cfg, 'labels', None)
